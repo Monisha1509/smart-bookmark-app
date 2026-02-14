@@ -30,7 +30,7 @@ export default function Home() {
         <Auth
           supabaseClient={supabase}
           appearance={{ theme: ThemeSupa }}
-          providers={[]}   // Only Email login
+          providers={[]}
         />
       </div>
     )
@@ -43,6 +43,7 @@ function BookmarkApp({ user }: any) {
   const [title, setTitle] = useState("")
   const [url, setUrl] = useState("")
   const [bookmarks, setBookmarks] = useState<any[]>([])
+  const [editId, setEditId] = useState<string | null>(null)
 
   const fetchBookmarks = async () => {
     const { data } = await supabase
@@ -58,40 +59,47 @@ function BookmarkApp({ user }: any) {
     fetchBookmarks()
   }, [])
 
-  const addBookmark = async () => {
+  const handleSubmit = async () => {
     if (!title || !url) return alert("Fill all fields")
 
-    await supabase.from("bookmarks").insert([
-      { title, url, user_id: user.id }
-    ])
+    if (editId) {
+      await supabase
+        .from("bookmarks")
+        .update({ title, url })
+        .eq("id", editId)
+
+      setEditId(null)
+    } else {
+      await supabase.from("bookmarks").insert([
+        {
+          title,
+          url,
+          user_id: user.id,
+        },
+      ])
+    }
 
     setTitle("")
     setUrl("")
     fetchBookmarks()
   }
 
-  const deleteBookmark = async (id: string) => {
-    await supabase
-      .from("bookmarks")
-      .delete()
-      .eq("id", id)
-
+  const handleDelete = async (id: string) => {
+    await supabase.from("bookmarks").delete().eq("id", id)
     fetchBookmarks()
   }
 
-  return (
-    <div style={{
-      maxWidth: "600px",
-      margin: "50px auto",
-      fontFamily: "Arial"
-    }}>
-      <h1 style={{ textAlign: "center" }}>
-        Smart Bookmark App 🚀
-      </h1>
+  const handleEdit = (bookmark: any) => {
+    setTitle(bookmark.title)
+    setUrl(bookmark.url)
+    setEditId(bookmark.id)
+  }
 
-      <p style={{ textAlign: "center" }}>
-        Logged in as: {user.email}
-      </p>
+  return (
+    <div style={{ maxWidth: "600px", margin: "50px auto", fontFamily: "Arial" }}>
+      <h1 style={{ textAlign: "center" }}>Smart Bookmark App 🚀</h1>
+
+      <p style={{ textAlign: "center" }}>Logged in as: {user.email}</p>
 
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
         <button
@@ -130,18 +138,18 @@ function BookmarkApp({ user }: any) {
         />
 
         <button
-          onClick={addBookmark}
+          onClick={handleSubmit}
           style={{
             width: "100%",
             padding: "10px",
-            background: "#0070f3",
+            background: editId ? "orange" : "#0070f3",
             color: "white",
             border: "none",
             borderRadius: "5px",
             cursor: "pointer"
           }}
         >
-          Add Bookmark
+          {editId ? "Update Bookmark" : "Add Bookmark"}
         </button>
       </div>
 
@@ -166,7 +174,22 @@ function BookmarkApp({ user }: any) {
           <br /><br />
 
           <button
-            onClick={() => deleteBookmark(item.id)}
+            onClick={() => handleEdit(item)}
+            style={{
+              background: "orange",
+              color: "white",
+              border: "none",
+              padding: "5px 10px",
+              borderRadius: "5px",
+              marginRight: "10px",
+              cursor: "pointer"
+            }}
+          >
+            Edit ✏
+          </button>
+
+          <button
+            onClick={() => handleDelete(item.id)}
             style={{
               background: "red",
               color: "white",
