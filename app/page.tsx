@@ -30,7 +30,7 @@ export default function Home() {
         <Auth
           supabaseClient={supabase}
           appearance={{ theme: ThemeSupa }}
-          providers={[]}
+          providers={["google"]}
         />
       </div>
     )
@@ -45,6 +45,7 @@ function BookmarkApp({ user }: any) {
   const [bookmarks, setBookmarks] = useState<any[]>([])
   const [editId, setEditId] = useState<string | null>(null)
 
+  // ✅ Fetch Bookmarks
   const fetchBookmarks = async () => {
     const { data } = await supabase
       .from("bookmarks")
@@ -55,10 +56,32 @@ function BookmarkApp({ user }: any) {
     setBookmarks(data || [])
   }
 
+  // ✅ Initial Load + Realtime
   useEffect(() => {
     fetchBookmarks()
+
+    const channel = supabase
+      .channel("realtime-bookmarks")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookmarks",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchBookmarks()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
+  // ✅ Add or Update
   const handleSubmit = async () => {
     if (!title || !url) return alert("Fill all fields")
 
@@ -81,14 +104,14 @@ function BookmarkApp({ user }: any) {
 
     setTitle("")
     setUrl("")
-    fetchBookmarks()
   }
 
+  // ✅ Delete
   const handleDelete = async (id: string) => {
     await supabase.from("bookmarks").delete().eq("id", id)
-    fetchBookmarks()
   }
 
+  // ✅ Edit
   const handleEdit = (bookmark: any) => {
     setTitle(bookmark.title)
     setUrl(bookmark.url)
@@ -110,19 +133,22 @@ function BookmarkApp({ user }: any) {
             padding: "8px 12px",
             borderRadius: "5px",
             border: "none",
-            cursor: "pointer"
+            cursor: "pointer",
           }}
         >
           Logout
         </button>
       </div>
 
-      <div style={{
-        background: "#f4f4f4",
-        padding: "20px",
-        borderRadius: "10px",
-        marginBottom: "20px"
-      }}>
+      {/* Form */}
+      <div
+        style={{
+          background: "#f4f4f4",
+          padding: "20px",
+          borderRadius: "10px",
+          marginBottom: "20px",
+        }}
+      >
         <input
           placeholder="Enter Title"
           value={title}
@@ -146,7 +172,7 @@ function BookmarkApp({ user }: any) {
             color: "white",
             border: "none",
             borderRadius: "5px",
-            cursor: "pointer"
+            cursor: "pointer",
           }}
         >
           {editId ? "Update Bookmark" : "Add Bookmark"}
@@ -163,15 +189,17 @@ function BookmarkApp({ user }: any) {
             padding: "15px",
             borderRadius: "8px",
             marginBottom: "15px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
         >
           <h3>{item.title}</h3>
-          <a href={item.url} target="_blank">
+
+          <a href={item.url} target="_blank" rel="noopener noreferrer">
             {item.url}
           </a>
 
-          <br /><br />
+          <br />
+          <br />
 
           <button
             onClick={() => handleEdit(item)}
@@ -182,7 +210,7 @@ function BookmarkApp({ user }: any) {
               padding: "5px 10px",
               borderRadius: "5px",
               marginRight: "10px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Edit ✏
@@ -196,7 +224,7 @@ function BookmarkApp({ user }: any) {
               border: "none",
               padding: "5px 10px",
               borderRadius: "5px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Delete ❌
